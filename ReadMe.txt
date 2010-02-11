@@ -30,13 +30,13 @@ Run extchanger.exe
 G_E_T S_T_A_R_T_E_D
 -=================-
 
-* The extension changer has an easy GUI,
+:= The extension changer has an easy GUI,
   just drag'n drop the file you wanna change
   into it or use the shell build in function
   on the file it self.
-* Once the extension changer has add the file 
+:= Once the extension changer has add the file 
   to it, insert the extension below and push 'change'.
-* If a message appears with this title "Confirm 'Edit The Extension Action" when you 
+:= If a message appears with this title "Confirm 'Edit The Extension Action" when you 
   select more than one file, there is no problem just click on OK.
 
 
