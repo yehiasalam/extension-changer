@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>OwnerDrawContextMenu, ver. 2.0.0</title>
+
+<style type='text/css'>
+/*  body         { font-family: MS Sans Serif; font-size: 12pt; } */
+  h1           { font: bold 14pt Arial; margin-bottom: 10px; }
+  h2           { font: bold 12pt Arial; margin-bottom: 10px; margin-top: 40px; }
+  td.name      { background-color: #33CCFF; width: 120px; font-weight: bold; }
+  td.desc      { background-color: #F0F0F0; }
+  td.default   { background-color: #F0F0F0; }
+  ul           { margin-left: 15px; margin-top: 5px; }
+  li           { margin-bottom: 10px; }
+  .declaration { font-weight: bold; }
+</style>
+
+</head>
+
+
+<body topmargin='15' bottommargin='15' leftmargin='10' rightmargin='10'>
+
+<a name='Top'><h1>OwnerDrawContextMenu, ver. 2.0.0</h1>
+
+
+<a href='#Howto'>[How To Use]</a> <a href='#Properties'>[Properties]</a> <a href='#Methods'>[Methods]</a> <!-- <a href='#Events'>[Events]</a> -->
+<br>
+<a href='#Hints'>[Hints]</a> <a href='#Bugs'>[Known Bugs]</a> <a href='#Comments'>[Comments]</a>
+<br>
+
+
+<p>
+OwnerDrawContextMenu is a class for adding your own menu items to the shell context menu
+(the menu you get when you right-click a file or folder). It is descended from CustomContextMenu.
+Its additional feature is that it allows you to create owner-drawn menu items.
+</p>
+
+<p>
+Although the two classes, OwnerDrawContextMenu and CustomContextMenu, exist in the same unit,
+I've chosen to separate them in the documentation.
+This document describes <i>only</i> the added features of OwnerDrawContextMenu. For an explanation
+of all its inherited features, and a general guide on how to create a context menu handler,
+see the CustomContextMenu documentation.
+</p>
+
+
+
+<a name='Howto'></a><h2>How To Use</h2>
+
+<p>
+In order to draw the context menu items manually, you must override the two abstract methods,
+MeasureMenuItem and DrawMenuItem, described below. You must also insert the relevant menu items
+as owner-drawn items (using the MFT_OWNERDRAW constant).
+</p>
+
+
+
+<a name='Properties'></a><h2>Properties</h2>
+
+<ul>
+<li>No new properties.
+</li>
+</ul>
+
+
+
+<a name='Methods'></a><h2>Methods</h2>
+
+<table cellpadding='2' cellspacing='2' border='0' width='100%'>
+<tr>
+  <td class='name' valign='top'>MeasureMenuItem</td>
+  <td class='desc' valign='top'><span class='declaration'>procedure MeasureMenuItem(IdCmd: UINT; var Width: UINT; var Height: UINT); virtual; abstract;</span><br>
+  When you're drawing a menu item manually Windows needs to know its size.
+  This method must return the appropriate width and height of your owner-drawn menu item.<br>
+  <b>Parameters:</b><br>
+  <i>IdCmd</i> is the ID of the menu item that requires redrawing (which you specified in AddMenuItems).<br>
+  <i>Width</i> is the required width of the menu item.<br>
+  <i>Height</i> is the required height of the menu item.<br>
+  <b>NOTE:</b> You must specify a width and height. You can't expect the variables to be predefined
+  with meaningful values.<br>
+  <b>NOTE:</b> Windows internally adds right and left margins to the width, so don't
+  include any margin.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>DrawMenuItem</td>
+  <td class='desc' valign='top'><span class='declaration'>procedure DrawMenuItem(Menu: HMENU; IdCmd: UINT; DC: HDC; Rect: TRect; State: TOwnerDrawState); virtual; abstract;</span><br>
+  This method is called when the owner-drawn menu item must draw itself.<br>
+  <b>Parameters:</b><br>
+  <i>Menu</i> is the handle of the context menu or a submenu.<br>
+  <i>IdCmd</i> is the ID of the menu item that requires redrawing.<br>
+  <i>DC</i> is the device context to draw on.<br>
+  <i>Rect</i> is the rectangle to draw inside. You should stay inside this area. You can
+  draw anywhere on the menu, but whatever you paint outside your menu item's area will likely
+  be painted over by the other menu items.<br>
+  <i>State</i> is the state of the menu item (whether it is highlighted, disabled, etc.)
+  You should paint the item accordingly.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>GetStandardMenuItemHeight</td>
+  <td class='desc' valign='top'><span class='declaration'>function GetStandardMenuItemHeight: Longint;</span><br>
+  This is a utility method that returns the height of a standard menu item. It is useful
+  in the MeasureMenuItem method if you want your menu item to be of standard height.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>GetStandardTextWidth</td>
+  <td class='desc' valign='top'><span class='declaration'>function GetStandardTextWidth(Text: String): Longint;</span><br>
+  This is a utility method that returns the width of a text when it's rendered in the standard 
+  menu font. It is useful in the MeasureMenuItem method if you want your menu item to contain 
+  text in the standard menu font.<br>
+  <b>Parameters:</b><br>
+  <i>Text</i> is the text to calculate the width of.</td>
+</tr>
+</table>
+
+
+<!--
+<a name='Events'></a><h2>Events</h2>
+
+<p>No events. You override the abstract methods instead.</p>
+-->
+
+
+
+<a name='Hints'></a><h2>Hints</h2>
+
+<ul>
+<li><b>How do I draw a bitmap transparently in the menu?</b><br>
+This is actually pretty complicated. See the OwnerDrw demo for source code.
+</li>
+
+<li><b>Can I specify an accelerator key in my custom-drawn menu item?</b><br>
+In an ordinary menu item you just insert an ampersand (&amp;) in the item's text,
+and Windows will automatically create an accelerator (a key, represented by an underlined 
+character, which the user can press to select the menu item). Accelerators don't appear 
+to be possible for custom-drawn items. IContextMenu3 reportedly sends a WM_MENUCHAR 
+message when the menu is open and the user presses a key for which there is no 
+accelerator. Unfortunately the message is not sent to the context menu handler,
+but to the owner of the context menu (the folder window), so you can't check if 
+the user has pressed a certain key.
+</li>
+
+<li><b>Tell me more about context menu handlers?</b><br>
+See <a href='http://msdn.microsoft.com/library/en-us/shellcc/platform/shell/programmersguide/shell_int/shell_int_extending/extensionhandlers/contextmenuhandlers.asp' target='_blank'>Creating
+Context Menu Handlers</a>.
+</li>
+</ul>
+
+
+
+<a name='Bugs'></a><h2>Known Bugs</h2>
+
+<p>
+WinME (and maybe also Win95 and Win98, please tell me) has a bug: If you attempt to install
+your DLL using an *.inf file, Windows will report it can't find the DLL if the DLL has a
+long file name (more than 8.3 letters). Using the &quot;Browse&quot; button in the dialog
+Windows presents makes no difference. So consider using a filename in the 8.3 format, if you
+intend to install your handler via an *.inf file.
+</p>
+
+
+
+<a name='Comments'></a><h2>Comments</h2>
+
+CustomContextMenu and OwnerDrawContextMenu are <i>freeware</i>. Feel free to use and improve them,
+but <i>please include all original files if you redistribute the zip-file</i>.
+If you have any comments or corrections I would very much like to hear them.
+</p>
+
+<p>
+Get the latest version from <a href='http://www3.brinkster.com/troels/delphi.asp' target='_blank'>
+http://www3.brinkster.com/troels/delphi.asp</a>.
+</p>
+
+<p>
+Troels Jakobsen<br>
+<a href='mailto:delphiuser@get2net.dk'>delphiuser@get2net.dk</a>
+</p>
+
+</body>
+</html>
+

@@ -1,0 +1,362 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>CustomContextMenu, ver. 2.0.0</title>
+
+<style type='text/css'>
+/*  body         { font-family: MS Sans Serif; font-size: 12pt; } */
+  h1           { font: bold 14pt Arial; margin-bottom: 10px; }
+  h2           { font: bold 12pt Arial; margin-bottom: 10px; margin-top: 40px; }
+  td.name      { background-color: #33CCCC; width: 120px; font-weight: bold; }
+  td.desc      { background-color: #F0F0F0; }
+  td.default   { background-color: #F0F0F0; }
+  ul           { margin-left: 15px; margin-top: 5px; }
+  li           { margin-bottom: 10px; }
+  .declaration { font-weight: bold; }
+</style>
+
+</head>
+
+
+<body topmargin='15' bottommargin='15' leftmargin='10' rightmargin='10'>
+
+<a name='Top'><h1>CustomContextMenu, ver. 2.0.0</h1>
+
+
+<a href='#Howto'>[How To Use]</a> <a href='#Properties'>[Properties]</a> <a href='#Methods'>[Methods]</a> <!-- <a href='#Events'>[Events]</a> --> <a href='#StandAloneMethods'>[Stand-alone Methods]</a>
+<br>
+<a href='#Hints'>[Hints]</a> <a href='#Bugs'>[Known Bugs]</a> <a href='#Comments'>[Comments]</a>
+<br>
+
+
+<p>
+CustomContextMenu is intended to make it easy to add your own menu items to the shell context menu
+(the menu you get when you right-click a file or folder).
+</p>
+
+<p>
+It is an abstract class which contains four methods you must override, in order to add
+your menu items and execute them.
+</p>
+
+
+
+<a name='Howto'></a><h2>How To Use</h2>
+
+<p>
+To add your own menu items to the shell context menu you must create a DLL file.
+This file is known as a <i>context menu handler</i> (or a <i>shortcut menu extension</i>).
+</p>
+
+<p>
+Windows defines an interface, <a href='http://msdn.microsoft.com/library/en-us/shellcc/platform/shell/reference/ifaces/icontextmenu/icontextmenu.asp' target='_blank'>IContextMenu</a>,
+which third-party developers can implement. Whenever Windows is about to show a shell context menu
+it looks in the Registry to see if there are any DLLs that have been registered as context menu
+handlers. If so, the registered handlers are then called. Windows provides them with the relevant
+information, like which files are currently selected, and the handlers are expected to provide
+(implement) the methods defined in IContextMenu.
+</p>
+
+<p>
+Writing a context menu handler from scratch is tricky stuff, so I wrote CustomContextMenu
+in order to encapsulate the basic details and let you concentrate on the essentials.
+Here's how to use it:
+</p>
+
+<ul>
+<li>Create a DLL project.</li>
+
+<li>Add a unit containing a class (called TMyContextMenu, for instance) descended from
+TCustomContextMenu.</li>
+
+<li>In TMyContextMenu, override the four abstract methods, AddMenuItems, GetHelpText, GetVerb,
+and ExecuteCommand. These methods are called when Windows needs information from you handler.
+They are described in details below.</li>
+
+<li>In the initialization part of your unit, call the method Initialize in order to
+create an instance of your class when Windows calls your DLL.
+As your context menu handler is a COM object, it needs a GUID in order to be identified
+by Windows (a GUID is just a unique ID). You must call the Initialize method with this GUID,
+and you must also register your DLL with the same GUID in the Registry.</li>
+
+<li>How do you register your DLL in the Registry? There are several ways.
+The most basic is a *.reg file. I prefer *.inf files, as they are more customizable.
+Or you could use an install program. CustomContextMenu also comes with some stand-alone
+registration methods you can use in an application (but not in the DLL itself).
+</li>
+</ul>
+
+<p>
+CustomContextMenu comes with a couple of demos. Take a look at them, and you will
+probably quickly catch on. The CopyPath demo is the easiest one to understand.
+</p>
+
+<p>
+I have provided *.inf files for the demos. They do more than simply registering the
+corresponding DLLs, they also allow you to uninstall them again through the Control Panel.
+Open one of the files, and at the bottom you'll find a number of constants you can substitute
+with your own. Make especially sure the GUID matches the GUID found in your handler,
+and remember the GUID must be unique for each handler (and everything else that is
+registered).
+</p>
+
+<p>
+The handler can be registered for different file types (so it will only be called if
+the selected file is a *.txt file, for example). You can find these file types
+in the Registry under the HKEY_CLASSES_ROOT key. Here are some common types:
+</p>
+
+<ul>
+<li style='margin-bottom:0px'><b>*</b> - all files, but not folders or shortcuts</li>
+<li style='margin-bottom:0px'><b>txtfile</b> - all *.txt files</li>
+<li style='margin-bottom:0px'><b>exefile</b> - all *.exe files</li>
+<li><b>Folder</b> - all folders</li>
+</ul>
+
+<p>
+If you need to register your handler for a specific file type, look in the Registry
+under HKEY_CLASSES_ROOT. Say you want to register a handler for *.dpk files.
+The default value for the HKEY_CLASSES_ROOT\.dpk key (dot dpk) is &quot;DelphiPackage&quot;.
+That means you must specify &quot;DelphiPackage&quot; as the file type when you
+register (or unregister) your handler. You can register the handler for multiple file types.
+</p>
+
+<p>
+By convention context menu handlers should be installed in the folder ShellExt below the 
+Windows System folder.
+</p>
+
+
+
+<a name='Properties'></a><h2>Properties</h2>
+
+<table cellpadding='2' cellspacing='2' border='0' width='100%'>
+<tr>
+  <td class='name' valign='top'>FileNames</td>
+  <td class='desc' valign='top'><span class='declaration'>property FileNames: TStringList;</span><br>
+  When the context menu handler is initially called, Windows tells it what files or folders are 
+  selected by the user. FileNames contains the fully qualified file names (complete path). 
+  It can contain names of both files and folders.<br>
+  <b>NOTE:</b> You can change the items in FileNames without problems (eg. remove the file names
+  that don't match certain criteria, or sort the list alphabetically).</td>
+  <td class='default' valign='top' nowrap><br></td>
+</tr>
+<tr>
+  <td class='name' valign='top'>FolderName</td>
+  <td class='desc' valign='top'><span class='declaration'>property FolderName: String;</span><br>
+  This property is the path of the folder containing the user-selected items.</td>
+  <td class='default' valign='top' nowrap>Read-only</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>ExtendedMenu</td>
+  <td class='desc' valign='top'><span class='declaration'>property ExtendedMenu: Boolean;</span><br>
+  This flag is true when the user holds down the SHIFT key while right-clicking a file or folder.</td>
+  <td class='default' valign='top' nowrap>Read-only</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>IdCmdFirstOffset</td>
+  <td class='desc' valign='top'><span class='declaration'>property IdCmdFirstOffset: UINT;</span><br>
+  This property stores the value of the IdCmdFirst parameter when the AddMenuItems method is called.</td>
+  <td class='default' valign='top' nowrap>Read-only</td>
+</tr>
+</table>
+
+
+
+<a name='Methods'></a><h2>Methods</h2>
+
+<table cellpadding='2' cellspacing='2' border='0' width='100%'>
+<tr>
+  <td class='name' valign='top'>AddMenuItems</td>
+  <td class='desc' valign='top'><span class='declaration'>function AddMenuItems(Menu: HMENU; MenuIndex, IdCmdFirst, IdCmdLast: UINT): UINT; virtual; abstract;</span><br>
+  This method is called when the context menu is about to display. At this point you add
+  your menu items.<br>
+  <b>Parameters:</b><br>
+  <i>Menu</i> is the context menu's handle.<br>
+  <i>MenuIndex</i> is the current position in the context menu. You can insert your menu item(s)
+  in another position if you like.<br>
+  <i>IdCmdFirst</i> is the minimum possible ID your menu item(s) can have.
+  Each menu item you insert must have a unique ID (as represented by TMenuItemInfo.wID).
+  Without a proper ID your menu items will either fail to display, fail to execute, or even
+  cause other menu items not to display. A good rule of thumb is to use IdCmdFirst as the
+  first ID and then increment the ID for each additional menu item. This maximizes the
+  potential number of menu items that can be added.<br>
+  <i>IdCmdLast</i> is the maximum possible ID your menu item(s) can have.
+  Typically there's a difference of about 100 between IdCmdFirst and IdCmdLast, and this
+  number is shared between <i>all</i> menu items - so limit the number of menu items you insert,
+  and use IdCmdFirst as a base for your IDs.<br>
+  <b>Return value:</b><br>
+  Your implementation of AddMenuItems must return the <i>highest</i>
+  ID used by your menu items, or 0 if no menu items were inserted.<br>
+  </td>
+</tr>
+<tr>
+  <td class='name' valign='top'>GetHelpText</td>
+  <td class='desc' valign='top'><span class='declaration'>function GetHelpText(IdCmdOffset: UINT): String; virtual; abstract;</span><br>
+  This method is called when a menu item is highlighted.
+  It must return a descriptive text. This text is displayed in the folder window's status bar.<br>
+  <b>Parameters:</b><br>
+  <i>IdCmdOffset</i> is the ID of the highlighted menu item (which you specified in AddMenuItems) <i>minus</i>
+  the original ID offset. In other words, if you inserted a menu item in AddMenuItems with an ID of
+  IdCmdFirst, then IdCmdOffset will have a value of 0.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>GetVerb</td>
+  <td class='desc' valign='top'><span class='declaration'>function GetVerb(IdCmdOffset: UINT): String; virtual; abstract;</span><br>
+  Like GetHelpText this method is called when a menu item is highlighted.
+  A verb is a command that is registered for a particular file type. Common verbs are
+  &quot;open&quot; and &quot;print&quot; (go to HKEY_CLASSES_ROOT\txtfile\shell in the Registry 
+  to see the verbs associated with *.txt files). It doesn't matter what you specify the verb
+  to be, since verbs are only used by external programs that call the context menu's items.
+  CustomContextMenu doesn't support external programs calling your custom menu items.<br>
+  <b>Parameters:</b><br>
+  <i>IdCmdOffset</i> is the ID of the highlighted menu item (which you specified in AddMenuItems) <i>minus</i>
+  the original ID offset.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>ExecuteCommand</td>
+  <td class='desc' valign='top'><span class='declaration'>procedure ExecuteCommand(IdCmdOffset: UINT); virtual; abstract;</span><br>
+  This method is called when the menu item is selected (clicked).
+  Use it to run your own code.<br>
+  <b>Parameters:</b><br>
+  <i>IdCmdOffset</i> is the ID of the highlighted menu item (which you specified in AddMenuItems) <i>minus</i>
+  the original ID offset.</td>
+</tr>
+</table>
+
+
+<!--
+<a name='Events'></a><h2>Events</h2>
+
+<p>No events. You override the abstract methods instead.</p>
+-->
+
+
+<a name='StandAloneMethods'></a><h2>Stand-alone Methods</h2>
+
+<table cellpadding='2' cellspacing='2' border='0' width='100%'>
+<tr>
+  <td class='name' valign='top'>Initialize</td>
+  <td class='desc' valign='top'><span class='declaration'>procedure Initialize(ComClass: TComClass; ClassID: TGUID; ClassName: String);</span><br>
+  You must call this method in the Initialization part of the unit that descends
+  from TCustomContextMenu.<br>
+  <b>Parameters:</b><br>
+  <i>ComClass</i> is the class descended from TCustomContextMenu.<br>
+  <i>ClassID</i> is the GUID specific to your handler.<br>
+  <i>ClassName</i> is a class name for your handler. I believe the naming convention says 
+  the name must not contain spaces, but the class name isn't really important unless you 
+  expect other applications to identify your handler.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>RegisterHandler</td>
+  <td class='desc' valign='top'><span class='declaration'>RegisterHandler(ClassID: TGUID; Path: String; Description: String);</span><br>
+  Registers your context menu handler in the Registry.
+  You don't have to register it programmatically; you can also do it through an *.inf file
+  or some other install script. Using this method in your context menu handler doesn't make
+  sense (an unregistered handler can't register itself) - use it in an external application
+  instead.<br>
+  <b>Parameters:</b><br>
+  <i>ClassID</i> is the GUID specific to your handler.<br>
+  <i>Path</i> is the path to your handler (the DLL file).<br>
+  <i>Description</i> is a description for your handler.<br>
+  <b>NOTE:</b> You must also associate the handler with a file type. Use the RegisterFileType
+  method for this purpose.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>UnregisterHandler</td>
+  <td class='desc' valign='top'><span class='declaration'>UnregisterHandler(ClassID: TGUID);</span><br>
+  Unregisters your context menu handler in the Registry.<br>
+  <b>Parameters:</b><br>
+  <i>ClassID</i> is the GUID specific to your handler.<br>
+  <b>NOTE:</b> If you unregister your handler you should also call the UnregisterFileType
+  method to remove the association to registered file types (provided you know these
+  file types, of course).</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>RegisterFileType</td>
+  <td class='desc' valign='top'><span class='declaration'>RegisterFileType(ClassID: TGUID; FileType, Name: String);</span><br>
+  Associates your context menu handler with files or folders of a specific type. The handler
+  can be associated with multiple types (call this method several times in that case).<br>
+  <b>Parameters:</b><br>
+  <i>ClassID</i> is the GUID specific to your handler.<br>
+  <i>FileType</i> is the file type you want to register the handler for (as found in the
+  Registry - eg. 'txtfile').<br>
+  <i>Name</i> is the name your handler should be registered under.<br>
+  <b>NOTE:</b> You must also register the handler itself. Use the RegisterHandler
+  method for this purpose.</td>
+</tr>
+<tr>
+  <td class='name' valign='top'>UnregisterFileType</td>
+  <td class='desc' valign='top'><span class='declaration'>UnregisterFileType(ClassID: TGUID; FileType, Name: String);</span><br>
+  Unassociates your context menu handler from files or folders of a specific type.<br>
+  <b>Parameters:</b><br>
+  <i>ClassID</i> is the GUID specific to your handler.<br>
+  <i>FileType</i> is the file type you want to unregister the handler for.<br>
+  <i>Name</i> is the name your handler is registered under.</td>
+</tr>
+</table>
+
+
+
+<a name='Hints'></a><h2>Hints</h2>
+
+<ul>
+<li><b>My handler adds a menu item, but nothing happens when I select it?</b><br>
+More than likely there's something wrong with the ID in the menu item you inserted.
+Make sure you follow the directions mentioned for the AddMenuItems method.
+</li>
+
+<li><b>Can I create submenus?</b><br>
+Yes, the context menu is a popup menu like any other.
+</li>
+
+<li><b>Can I create owner-drawn menu items?</b><br>
+Yes, but you must use the OwnerDrawContextMenu class for this.
+</li>
+
+<li><b>Can I debug my handler?</b><br>
+In Delphi you can specify a host application that runs your DLL (using Run|Parameters).
+However, the context menu handler is called by explorer.exe, which is not suitable as a
+host application. So, no, you can't - not as far as I know, anyway.
+</li>
+
+<li><b>Tell me more about context menu handlers?</b><br>
+See <a href='http://msdn.microsoft.com/library/en-us/shellcc/platform/shell/programmersguide/shell_int/shell_int_extending/extensionhandlers/contextmenuhandlers.asp' target='_blank'>Creating
+Context Menu Handlers</a>.
+</li>
+</ul>
+
+
+
+<a name='Bugs'></a><h2>Known Bugs</h2>
+
+<p>
+WinME (and maybe also Win95 and Win98, please tell me) has a bug: If you attempt to install 
+your DLL using an *.inf file, Windows will report it can't find the DLL if the DLL has a 
+long file name (more than 8.3 letters). Using the &quot;Browse&quot; button in the dialog 
+Windows presents makes no difference. So consider using a filename in the 8.3 format, if you 
+intend to install your handler via an *.inf file.
+</p>
+
+
+
+<a name='Comments'></a><h2>Comments</h2>
+
+CustomContextMenu and OwnerDrawContextMenu are <i>freeware</i>. Feel free to use and improve them,
+but <i>please include all original files if you redistribute the zip-file</i>.
+If you have any comments or corrections I would very much like to hear them.
+</p>
+
+<p>
+Get the latest version from <a href='http://www3.brinkster.com/troels/delphi.asp' target='_blank'>
+http://www3.brinkster.com/troels/delphi.asp</a>.
+</p>
+
+<p>
+Troels Jakobsen<br>
+<a href='mailto:delphiuser@get2net.dk'>delphiuser@get2net.dk</a>
+</p>
+
+</body>
+</html>
+
